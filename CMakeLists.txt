@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10.0)
+cmake_minimum_required(VERSION 3.5)
 project(fast_gicp)
 
 option(BUILD_VGICP_CUDA "Build GPU-powered VGICP" OFF)
@@ -19,7 +19,7 @@ find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 if(NOT BUILD_PYTHON_BINDINGS)
-  find_package(catkin)
+  find_package(ament_cmake_ros)
 endif()
 
 find_package(OpenMP)
@@ -32,16 +32,6 @@ if(BUILD_VGICP_CUDA)
   find_package(CUDA REQUIRED)
   include_directories(${CUDA_INCLUDE_DIRS})
   link_directories(${CUDA_LIBRARY_DIRS})
-endif()
-
-###################################
-## catkin specific configuration ##
-###################################
-if(catkin_FOUND)
-  catkin_package(
-    INCLUDE_DIRS include
-    LIBRARIES fast_gicp
-  )
 endif()
 
 ###########
@@ -62,6 +52,31 @@ target_include_directories(fast_gicp PUBLIC
   ${PCL_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
 )
+
+###################################
+## ament specific configuration ##
+###################################
+if(ament_cmake_ros_FOUND)
+  ament_export_include_directories(include)
+  ament_export_libraries(fast_gicp)
+  ament_export_dependencies(Eigen3)
+  ament_export_dependencies(PCL)
+
+  install(
+    TARGETS fast_gicp
+    EXPORT fast_gicp
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+  )
+
+  install(
+    DIRECTORY include/
+    DESTINATION include
+  )
+
+  ament_package()
+endif()
 
 ### APPS ###
 if(BUILD_apps)
@@ -134,9 +149,11 @@ if(BUILD_VGICP_CUDA)
     fast_vgicp_cuda
   )
   add_dependencies(fast_gicp fast_vgicp_cuda)
-  if(catkin_FOUND)
-    install(TARGETS fast_vgicp_cuda  
-      LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+  if(ament_cmake_ros_FOUND)
+    install(
+      TARGETS fast_vgicp_cuda
+      LIBRARY DESTINATION lib
+    )
   endif()
 endif()
 
@@ -148,13 +165,4 @@ if(BUILD_test)
   add_dependencies(gicp_test fast_gicp)
   target_link_libraries(gicp_test ${GTEST_LIBRARIES} ${PCL_LIBRARIES} fast_gicp)
   gtest_add_tests(TARGET gicp_test WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} EXTRA_ARGS "${CMAKE_SOURCE_DIR}/data")
-endif()
-
-if(catkin_FOUND)
-  install(TARGETS ${PROJECT_NAME}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-  
-  install(DIRECTORY include/
-    DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-    FILES_MATCHING PATTERN "*.hpp")
 endif()
